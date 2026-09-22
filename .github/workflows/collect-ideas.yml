@@ -14,15 +14,16 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
-          TELEGRAM_CHAT_ID: "-5431617150"
         run: |
           set -euo pipefail
 
           updates=$(curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates")
+          echo "Total updates fetched: $(echo "$updates" | jq '.result | length')"
 
-          echo "$updates" | jq -c --argjson chat "${TELEGRAM_CHAT_ID}" \
-            '.result[]? | select(.message.chat.id == $chat and (.message.text != null)) | .message' \
-            > messages.jsonl || true
+          echo "$updates" | jq -c \
+            '.result[]? | select(.message.chat.id == -5431617150 and (.message.text != null)) | .message' \
+            > messages.jsonl
+          echo "Matched idea messages: $(wc -l < messages.jsonl)"
 
           if [ -s messages.jsonl ]; then
             children="[]"
@@ -36,11 +37,12 @@ jobs:
             done < messages.jsonl
 
             body=$(jq -n --argjson c "$children" '{children:$c}')
-            curl -s -X PATCH "https://api.notion.com/v1/blocks/${NOTION_PAGE_ID}/children" \
+            resp=$(curl -s -w "HTTP_STATUS:%{http_code}" -X PATCH "https://api.notion.com/v1/blocks/${NOTION_PAGE_ID}/children" \
               -H "Authorization: Bearer ${NOTION_TOKEN}" \
               -H "Notion-Version: 2022-06-28" \
               -H "Content-Type: application/json" \
-              -d "$body" > /dev/null
+              -d "$body")
+            echo "Notion API response: $resp"
             echo "Appended $(wc -l < messages.jsonl) idea(s) to Notion."
           else
             echo "No new idea messages."
