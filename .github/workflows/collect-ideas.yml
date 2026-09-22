@@ -15,9 +15,14 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_PAGE_ID: ${{ secrets.NOTION_PAGE_ID }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
+
+          echo "Token length (should be ~46): ${#TELEGRAM_BOT_TOKEN}"
+          echo "Notion token length (should be ~50): ${#NOTION_TOKEN}"
+          echo "Page id length (should be 32): ${#NOTION_PAGE_ID}"
 
           updates=$(curl -s "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates")
+          echo "Raw Telegram response: $updates"
           echo "Total updates fetched: $(echo "$updates" | jq '.result | length')"
 
           echo "$updates" | jq -c \
